@@ -3,7 +3,6 @@
 use std::io;
 use std::io::ErrorKind;
 use std::io::Read;
-use std::slice;
 use std::str;
 
 use crate::four_cc::FourCC;
@@ -120,17 +119,9 @@ impl BinaryReader {
         reader.read_exact(&mut data)
     }
 
-    pub(crate) fn read_wave_data<R: Read>(
-        reader: &mut R,
-        size: usize,
-    ) -> Result<Vec<i16>, io::Error> {
-        let length = size / 2;
-        let mut samples: Vec<i16> = vec![0; length];
-
-        let ptr = samples.as_mut_ptr() as *mut u8;
-        let data = unsafe { slice::from_raw_parts_mut(ptr, size) };
-        reader.read_exact(data)?;
-
-        Ok(samples)
+    pub(crate) fn read_bytes<R: Read>(reader: &mut R, size: usize) -> Result<Vec<u8>, io::Error> {
+        let mut data: Vec<u8> = vec![0; size];
+        reader.read_exact(&mut data)?;
+        Ok(data)
     }
 }

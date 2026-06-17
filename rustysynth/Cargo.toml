@@ -12,4 +12,8 @@ license = "MIT"
 keywords = ["soundfont", "midi", "synthesizer", "audio", "music"]
 categories = ["multimedia::audio"]
 
+[features]
+sf3 = ["dep:lewton"]
+
 [dependencies]
+lewton = { version = "0.10", optional = true }

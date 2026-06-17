@@ -16,6 +16,8 @@ mod preset_info;
 mod preset_region;
 mod sample_header;
 mod soundfont;
+#[cfg(feature = "sf3")]
+mod soundfont3;
 mod soundfont_info;
 mod soundfont_math;
 mod soundfont_parameters;

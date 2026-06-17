@@ -12,18 +12,24 @@ use crate::preset::Preset;
 use crate::preset_info::PresetInfo;
 use crate::read_counter::ReadCounter;
 use crate::sample_header::SampleHeader;
+use crate::soundfont_sampledata::SoundFontSampleData;
 use crate::zone::Zone;
 use crate::zone_info::ZoneInfo;
 
 #[non_exhaustive]
 pub(crate) struct SoundFontParameters {
+    pub(crate) bits_per_sample: i32,
+    pub(crate) wave_data: Vec<i16>,
     pub(crate) sample_headers: Vec<SampleHeader>,
     pub(crate) presets: Vec<Preset>,
     pub(crate) instruments: Vec<Instrument>,
 }
 
 impl SoundFontParameters {
-    pub(crate) fn new<R: Read>(reader: &mut R) -> Result<Self, SoundFontError> {
+    pub(crate) fn new<R: Read>(
+        reader: &mut R,
+        sample_data: SoundFontSampleData,
+    ) -> Result<Self, SoundFontError> {
         let chunk_id = BinaryReader::read_four_cc(reader)?;
         if chunk_id != b"LIST" {
             return Err(SoundFontError::ListChunkNotFound);
@@ -90,9 +96,22 @@ impl SoundFontParameters {
             SoundFontError::SubChunkNotFound(FourCC::from_bytes(*b"IGEN")),
         )?;
 
-        let sample_headers = sample_headers.ok_or(SoundFontError::SubChunkNotFound(
+        #[cfg_attr(not(feature = "sf3"), allow(unused_mut))]
+        let mut sample_headers = sample_headers.ok_or(SoundFontError::SubChunkNotFound(
             FourCC::from_bytes(*b"SHDR"),
         ))?;
+
+        let (bits_per_sample, wave_data) = match sample_data {
+            SoundFontSampleData::Pcm {
+                bits_per_sample,
+                wave_data,
+            } => (bits_per_sample, wave_data),
+            #[cfg(feature = "sf3")]
+            SoundFontSampleData::Vorbis(smpl) => (
+                16,
+                crate::soundfont3::decode_vorbis_samples(&smpl, &mut sample_headers)?,
+            ),
+        };
 
         let instrument_zones = Zone::create(&instrument_bag, &instrument_generators)?;
         let instruments =
@@ -102,6 +121,8 @@ impl SoundFontParameters {
         let presets = Preset::create(&preset_infos, &preset_zones, &instruments)?;
 
         Ok(Self {
+            bits_per_sample,
+            wave_data,
             sample_headers,
             presets,
             instruments,

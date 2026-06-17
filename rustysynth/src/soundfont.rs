@@ -49,12 +49,12 @@ impl SoundFont {
 
         let info = SoundFontInfo::new(reader)?;
         let sample_data = SoundFontSampleData::new(reader)?;
-        let parameters = SoundFontParameters::new(reader)?;
+        let parameters = SoundFontParameters::new(reader, sample_data)?;
 
         let sound_font = Self {
             info,
-            bits_per_sample: sample_data.bits_per_sample,
-            wave_data: sample_data.wave_data,
+            bits_per_sample: parameters.bits_per_sample,
+            wave_data: parameters.wave_data,
             sample_headers: parameters.sample_headers,
             presets: parameters.presets,
             instruments: parameters.instruments,
@@ -137,6 +137,7 @@ mod tests {
             .join("samples")
     }
 
+    #[cfg(not(feature = "sf3"))]
     #[test]
     fn test_load_reject_sf3() {
         let path = samples_dir_path().join("dummy.sf3");
@@ -145,6 +146,17 @@ mod tests {
             SoundFont::new(&mut file),
             Err(SoundFontError::UnsupportedSampleFormat)
         ));
+    }
+
+    #[cfg(feature = "sf3")]
+    #[test]
+    fn test_load_sf3() {
+        let path = samples_dir_path().join("dummy.sf3");
+        let mut file = File::open(&path).unwrap();
+        let sf = SoundFont::new(&mut file).unwrap();
+        assert_eq!(sf.get_bits_per_sample(), 16);
+        assert!(!sf.get_wave_data().is_empty());
+        assert!(!sf.get_sample_headers().is_empty());
     }
 
     // smpl sub-chunk exists, but is zero-length.
